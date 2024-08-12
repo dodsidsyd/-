@@ -1,0 +1,202 @@
+<div class="anchor" data-anchor="scroll_anchor">
+  <ul>
+    <li class="on"><a href="#none" data-target="#item1">item</a></li>
+    <li class="on"><a href="#none" data-target="#item2">item</a></li>
+    <li class="on"><a href="#none" data-target="#item3">item</a></li>
+    <li class="on"><a href="#none" data-target="#item4">item</a></li>
+  </ul>
+</div>
+<div data-anchorwrap>
+  <div class="img" id="item1" data-anchorbox></div>
+  <div class="img" id="item2" data-anchorbox></div>
+  <div class="img" id="item3" data-anchorbox></div>
+  <div class="img" id="item4" data-anchorbox></div>
+</div>
+
+Anchor = {
+    init() {
+        this.anchor = document.querySelector('[data-anchor]');
+        this.load = true;
+        this.scroll = true;
+        this.isScrollListenerActive = false;
+        this.isScrollingToTarget = false;
+        this.targetSection = null;
+
+        if (!this.anchor) return;
+
+        this.handlerEvent();
+        this.scrollEvent();
+        this.scrollAction();
+    },
+
+    handlerEvent() {
+        this.handler = this.anchor.querySelectorAll('[data-target]');
+
+        this.handler.forEach(button => {
+            button.addEventListener('click', this.handleButtonClick.bind(this));
+        });
+    },
+
+    handleButtonClick(event) {
+        event.preventDefault();
+
+        const button = event.target;
+        const parent = button.parentElement;
+        const targetElement = document.querySelector(button.dataset.target);
+
+        this.removeScrollListener();
+
+        this.updateActiveState(parent);
+
+        const scrollPosition = targetElement.offsetTop;
+        const targetPosition = window.scrollY + targetElement.getBoundingClientRect().top;
+        const currentScroll = window.scrollY || document.documentElement.scrollTop;
+
+        this.isScrollingToTarget = true;
+        this.targetSection = targetElement;
+
+        this.smoothScroll(scrollPosition, targetPosition, currentScroll, button);
+
+        setTimeout(() => {
+            this.isScrollingToTarget = false;
+            this.targetSection = null;
+            this.addScrollListener();
+        }, 1000);
+    },
+
+    updateActiveState(activeElement) {
+        const siblings = Array.from(activeElement.parentElement.children);
+        siblings.forEach(link => link.classList.remove('on'));
+        activeElement.classList.add('on');
+    },
+
+    smoothScroll(scrollPosition, targetPosition, currentScroll, button) {
+        const HEADER_HEIGHT = 74;
+        const TAB_HEIGHT = document.querySelector('.tab_wrap:has([data-anchor])') ? document.querySelector('.tab_wrap').clientHeight : 0;
+        const SCROLL_UP_OFFSET = 156;
+        const SCROLL_DOWN_OFFSET = 56;
+
+        let scrollTo;
+
+        if (window.location.href.includes('selectPageListGoods')) {
+            if (button.parentElement === button.closest('ul').firstElementChild) {
+                scrollTo = 0;
+            } else {
+                scrollTo = currentScroll > scrollPosition 
+                    ? targetPosition - SCROLL_UP_OFFSET
+                    : targetPosition - SCROLL_DOWN_OFFSET;
+            }
+        } else {
+            if (TAB_HEIGHT) {
+                scrollTo = scrollPosition - TAB_HEIGHT;
+            } else {
+                if (button.parentElement === button.closest('ul').firstElementChild) {
+                    scrollTo = targetPosition - (HEADER_HEIGHT + this.anchor.clientHeight);
+                } else {
+                    scrollTo = currentScroll > scrollPosition
+                        ? targetPosition - SCROLL_UP_OFFSET
+                        : targetPosition - SCROLL_DOWN_OFFSET;
+                }
+            }
+        }
+
+        window.scrollTo({ top: scrollTo, behavior: 'smooth' });
+    },
+
+    scrollEvent() {
+        this.scrollEventListener = this.handleScroll.bind(this);
+        this.addScrollListener();
+    },
+
+    handleScroll() {
+        const bodscrollAnchor = document.querySelector('body:has([data-anchor])');
+        if (!bodscrollAnchor) return;
+
+        const prolistBox = document.querySelectorAll('[data-anchorbox]');
+        const handler = document.querySelectorAll('[data-target]');
+        const tabHeight = document.querySelector('.tab_wrap:has([data-anchor])') ? document.querySelector('.tab_wrap').clientHeight : 0;
+
+        let activeIndex = -1;
+
+        prolistBox.forEach((box, index) => {
+            const boxTop = box.getBoundingClientRect().top + window.scrollY;
+            const boxBottom = boxTop + box.clientHeight;
+
+            const isInView = tabHeight
+                ? window.scrollY >= box.offsetTop - tabHeight && window.scrollY < box.offsetTop + box.clientHeight - tabHeight
+                : window.scrollY >= boxTop - 1 && window.scrollY < boxBottom;
+
+            if (isInView) {
+                activeIndex = index;
+            }
+        });
+
+        handler.forEach((button, index) => {
+            const parent = button.parentElement;
+            if (this.isScrollingToTarget) {
+                if (this.targetSection && this.targetSection.getBoundingClientRect().top <= 0) {
+                    parent.classList.toggle('on', button.dataset.target === `#${this.targetSection.id}`);
+                } else {
+                    parent.classList.remove('on');
+                }
+            } else {
+                parent.classList.toggle('on', index === activeIndex);
+            }
+        });
+
+        const lastBox = prolistBox[prolistBox.length - 1];
+        const lastRect = lastBox.getBoundingClientRect().top;
+        const lastSection = window.innerHeight - lastBox.offsetHeight;
+
+        if (lastRect <= lastSection && !this.isScrollingToTarget) {
+            handler.forEach((button, index) => {
+                const parent = button.parentElement;
+                parent.classList.toggle('on', index === handler.length - 1);
+            });
+        }
+    },
+
+    scrollAction() {
+        let lastScroll = 0;
+        const bodscrollAnchor = document.querySelector('body:has([data-anchor])');
+
+        document.addEventListener('scroll', () => {
+            if (!bodscrollAnchor) return;
+
+            const scrollTop = document.documentElement.scrollTop;
+            const headerHeight = document.querySelector('header').clientHeight;
+            const scrollAnchor = document.querySelector('[data-anchor="scroll_anchor"]');
+
+            const isScrollingDown = scrollTop > lastScroll;
+            const isAtTop = Math.floor(scrollAnchor.getBoundingClientRect().top) === 0;
+            const isAboveHeader = Math.floor(scrollAnchor.getBoundingClientRect().top) > headerHeight;
+
+            scrollAnchor.classList.toggle('scroll-up', !isScrollingDown);
+            scrollAnchor.classList.toggle('sticky', isScrollingDown && isAtTop);
+
+            if (isAboveHeader) {
+                scrollAnchor.classList.remove('sticky');
+            }
+
+            if (window.scrollY === 0) {
+                scrollAnchor.classList.remove('scroll-up');
+            }
+
+            lastScroll = scrollTop;
+        });
+    },
+
+    removeScrollListener() {
+        if (this.isScrollListenerActive) {
+            document.removeEventListener('scroll', this.scrollEventListener);
+            this.isScrollListenerActive = false;
+        }
+    },
+
+    addScrollListener() {
+        if (!this.isScrollListenerActive) {
+            document.addEventListener('scroll', this.scrollEventListener);
+            this.isScrollListenerActive = true;
+        }
+    }
+};
