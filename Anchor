@@ -1,5 +1,5 @@
 <div class="anchor" data-anchor="scroll_anchor">
-  <ul>
+  <ul class="inline-scroll">
     <li class="on"><a href="#none" data-target="#item1">item</a></li>
     <li class="on"><a href="#none" data-target="#item2">item</a></li>
     <li class="on"><a href="#none" data-target="#item3">item</a></li>
@@ -13,7 +13,7 @@
   <div class="img" id="item4" data-anchorbox></div>
 </div>
 
-Anchor = {
+UI.Anchor = {
     init() {
         this.anchor = document.querySelector('[data-anchor]');
         this.load = true;
@@ -24,9 +24,13 @@ Anchor = {
 
         if (!this.anchor) return;
 
-        this.handlerEvent();
-        this.scrollEvent();
-        this.scrollAction();
+		if (this.anchor.querySelector('[data-target]')) {
+			this.scrollAction();
+			this.handlerEvent();
+        	this.scrollEvent();
+		} else {
+			this.scrollAction();
+		}
     },
 
     handlerEvent() {
@@ -55,6 +59,8 @@ Anchor = {
         this.isScrollingToTarget = true;
         this.targetSection = targetElement;
 
+        parent.scrollIntoView({behavior: "smooth", inline: "center"});
+
         this.smoothScroll(scrollPosition, targetPosition, currentScroll, button);
 
         setTimeout(() => {
@@ -71,34 +77,9 @@ Anchor = {
     },
 
     smoothScroll(scrollPosition, targetPosition, currentScroll, button) {
-        const HEADER_HEIGHT = 74;
-        const TAB_HEIGHT = document.querySelector('.tab_wrap:has([data-anchor])') ? document.querySelector('.tab_wrap').clientHeight : 0;
-        const SCROLL_UP_OFFSET = 156;
-        const SCROLL_DOWN_OFFSET = 56;
+        const HEADER_HEIGHT = document.querySelector('.header').getBoundingClientRect().height;
 
-        let scrollTo;
-
-        if (window.location.href.includes('selectPageListGoods')) {
-            if (button.parentElement === button.closest('ul').firstElementChild) {
-                scrollTo = 0;
-            } else {
-                scrollTo = currentScroll > scrollPosition 
-                    ? targetPosition - SCROLL_UP_OFFSET
-                    : targetPosition - SCROLL_DOWN_OFFSET;
-            }
-        } else {
-            if (TAB_HEIGHT) {
-                scrollTo = scrollPosition - TAB_HEIGHT;
-            } else {
-                if (button.parentElement === button.closest('ul').firstElementChild) {
-                    scrollTo = targetPosition - (HEADER_HEIGHT + this.anchor.clientHeight);
-                } else {
-                    scrollTo = currentScroll > scrollPosition
-                        ? targetPosition - SCROLL_UP_OFFSET
-                        : targetPosition - SCROLL_DOWN_OFFSET;
-                }
-            }
-        }
+        let scrollTo = Math.round(targetPosition - (HEADER_HEIGHT + this.anchor.clientHeight));
 
         window.scrollTo({ top: scrollTo, behavior: 'smooth' });
     },
@@ -109,12 +90,11 @@ Anchor = {
     },
 
     handleScroll() {
-        const bodscrollAnchor = document.querySelector('body:has([data-anchor])');
-        if (!bodscrollAnchor) return;
+
+        const HEADER_HEIGHT = document.querySelector('.header').getBoundingClientRect().height;
 
         const prolistBox = document.querySelectorAll('[data-anchorbox]');
         const handler = document.querySelectorAll('[data-target]');
-        const tabHeight = document.querySelector('.tab_wrap:has([data-anchor])') ? document.querySelector('.tab_wrap').clientHeight : 0;
 
         let activeIndex = -1;
 
@@ -122,8 +102,8 @@ Anchor = {
             const boxTop = box.getBoundingClientRect().top + window.scrollY;
             const boxBottom = boxTop + box.clientHeight;
 
-            const isInView = tabHeight
-                ? window.scrollY >= box.offsetTop - tabHeight && window.scrollY < box.offsetTop + box.clientHeight - tabHeight
+            const isInView = HEADER_HEIGHT
+                ? window.scrollY >= box.offsetTop - (HEADER_HEIGHT + this.anchor.clientHeight) && window.scrollY < box.offsetTop + box.clientHeight - (HEADER_HEIGHT + this.anchor.clientHeight)
                 : window.scrollY >= boxTop - 1 && window.scrollY < boxBottom;
 
             if (isInView) {
@@ -158,10 +138,10 @@ Anchor = {
 
     scrollAction() {
         let lastScroll = 0;
-        const bodscrollAnchor = document.querySelector('body:has([data-anchor])');
+        // const bodscrollAnchor = document.querySelector('body:has([data-anchor])');
 
         document.addEventListener('scroll', () => {
-            if (!bodscrollAnchor) return;
+            // if (!bodscrollAnchor) return;
 
             const scrollTop = document.documentElement.scrollTop;
             const headerHeight = document.querySelector('header').clientHeight;
