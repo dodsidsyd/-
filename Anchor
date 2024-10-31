@@ -21,16 +21,18 @@ UI.Anchor = {
         this.isScrollListenerActive = false;
         this.isScrollingToTarget = false;
         this.targetSection = null;
+        this.lastActiveButton = null;
+        this.isTabScrolling = false;
 
         if (!this.anchor) return;
 
-		if (this.anchor.querySelector('[data-target]')) {
-			this.scrollAction();
-			this.handlerEvent();
-        	this.scrollEvent();
-		} else {
-			this.scrollAction();
-		}
+        if (this.anchor.querySelector('[data-target]')) {
+            this.scrollAction();
+            this.handlerEvent();
+            this.scrollEvent();
+        } else {
+            this.scrollAction();
+        }
     },
 
     handlerEvent() {
@@ -43,22 +45,22 @@ UI.Anchor = {
 
     handleButtonClick(event) {
         event.preventDefault();
+		this.removeScrollListener();
 
         const button = event.target;
         const parent = button.parentElement;
         const targetElement = document.querySelector(button.dataset.target);
 
-        this.removeScrollListener();
-
         this.updateActiveState(parent);
 
         const scrollPosition = targetElement.offsetTop;
-        const targetPosition = window.scrollY + targetElement.getBoundingClientRect().top;
+        const targetPosition = window.scrollY + targetElement.getBoundingClientRect().top +10;
         const currentScroll = window.scrollY || document.documentElement.scrollTop;
 
         this.isScrollingToTarget = true;
         this.targetSection = targetElement;
 
+        // this.scrollTabToCenter(parent);
         parent.scrollIntoView({behavior: "smooth", inline: "center"});
 
         this.smoothScroll(scrollPosition, targetPosition, currentScroll, button);
@@ -67,7 +69,20 @@ UI.Anchor = {
             this.isScrollingToTarget = false;
             this.targetSection = null;
             this.addScrollListener();
-        }, 1000);
+        }, 3000);
+    },
+
+    scrollTabToCenter(tabElement) {
+        const tabList = this.anchor;
+        const tabRect = tabElement.getBoundingClientRect();
+        const containerRect = tabList.getBoundingClientRect();
+
+        const scrollLeft = tabElement.offsetLeft - (containerRect.width / 2) + (tabRect.width / 2);
+
+        tabList.scrollTo({
+            left: scrollLeft,
+            behavior: 'smooth'
+        });
     },
 
     updateActiveState(activeElement) {
@@ -78,9 +93,7 @@ UI.Anchor = {
 
     smoothScroll(scrollPosition, targetPosition, currentScroll, button) {
         const HEADER_HEIGHT = document.querySelector('.header').getBoundingClientRect().height;
-
         let scrollTo = Math.round(targetPosition - (HEADER_HEIGHT + this.anchor.clientHeight));
-
         window.scrollTo({ top: scrollTo, behavior: 'smooth' });
     },
 
@@ -90,26 +103,42 @@ UI.Anchor = {
     },
 
     handleScroll() {
+        if (this.isTabScrolling) return;
 
         const HEADER_HEIGHT = document.querySelector('.header').getBoundingClientRect().height;
-
         const prolistBox = document.querySelectorAll('[data-anchorbox]');
         const handler = document.querySelectorAll('[data-target]');
 
         let activeIndex = -1;
+        let currentButton = null;
 
         prolistBox.forEach((box, index) => {
             const boxTop = box.getBoundingClientRect().top + window.scrollY;
             const boxBottom = boxTop + box.clientHeight;
 
             const isInView = HEADER_HEIGHT
-                ? window.scrollY >= box.offsetTop - (HEADER_HEIGHT + this.anchor.clientHeight) && window.scrollY < box.offsetTop + box.clientHeight - (HEADER_HEIGHT + this.anchor.clientHeight)
+                ? window.scrollY >= box.offsetTop - (HEADER_HEIGHT + this.anchor.clientHeight) && 
+                  window.scrollY < box.offsetTop + box.clientHeight - (HEADER_HEIGHT + this.anchor.clientHeight)
                 : window.scrollY >= boxTop - 1 && window.scrollY < boxBottom;
 
             if (isInView) {
                 activeIndex = index;
+                currentButton = handler[index];
             }
         });
+
+        if (currentButton && (!this.lastActiveButton || this.lastActiveButton !== currentButton)) {
+            const parent = currentButton.parentElement;
+            this.isTabScrolling = true;
+
+            this.scrollTabToCenter(parent);
+
+            setTimeout(() => {
+                this.isTabScrolling = false;
+            }, 300);
+
+            this.lastActiveButton = currentButton;
+        }
 
         handler.forEach((button, index) => {
             const parent = button.parentElement;
@@ -138,11 +167,8 @@ UI.Anchor = {
 
     scrollAction() {
         let lastScroll = 0;
-        // const bodscrollAnchor = document.querySelector('body:has([data-anchor])');
 
         document.addEventListener('scroll', () => {
-            // if (!bodscrollAnchor) return;
-
             const scrollTop = document.documentElement.scrollTop;
             const headerHeight = document.querySelector('header').clientHeight;
             const scrollAnchor = document.querySelector('[data-anchor="scroll_anchor"]');
